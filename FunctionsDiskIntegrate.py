@@ -17,8 +17,8 @@ def visualize(cube_path):
     N = header["NAXIS3"]
     pix_x = header["NAXIS1"]
     pix_y = header["NAXIS2"]
-    dx = np.abs(header["CDELT1"])
-    dy = np.abs(header["CDELT2"])
+    dx = np.abs(header["CDELT1"]) * 60 * 60
+    dy = np.abs(header["CDELT2"]) * 60 * 60
     wave = np.zeros(N)
     for i in range(N):
         wave[i] = (i+header["CRPIX3"])*header["CDELT3"] + header["CRVAL3"]
@@ -34,6 +34,9 @@ def visualize(cube_path):
     axes.imshow(medians, origin="lower", aspect=dy/dx)
     axes.set_ylabel("y-spaxels")
     axes.set_xlabel("x-spaxels")
+
+    print(" ")
+    print("Size of the data: (",N ,", ", pix_y, ", ", pix_y, ")")
     return data, wave, pix_x, pix_y, dx, dy
 
 
@@ -59,7 +62,8 @@ def Atmospheric_dispersion_correction(cube_path,
             wave[i] = (i+header["CRPIX3"])*header["CDELT3"] + header["CRVAL3"]
     
     if (len(data) > 0) and (len(wave) == 0):
-        print("wave= ")
+        print(" ")
+        print("wave = empty")
         print("Error: If you provide the data, also should provide the wavelength")
 
     if len(data) > 0:
@@ -178,7 +182,7 @@ def Atmospheric_dispersion_correction(cube_path,
     if center_y == False:
 
         y_mov = np.round(y_coords_center)
-        y_mov_float = y_coords_center
+        y_mov_float = np.round(y_coords_center)
 
 
     y_variation = y_mov_float - y_mov
@@ -215,7 +219,7 @@ def Atmospheric_dispersion_correction(cube_path,
     if center_x == False:
 
         x_mov = np.round(x_coords_center)
-        x_mov_float = x_coords_center
+        x_mov_float = np.round(x_coords_center)
 
 
     x_variation = x_mov_float - x_mov
@@ -287,7 +291,7 @@ def Atmospheric_dispersion_correction(cube_path,
 
     print(" ")
     print("Center of the object: (y, x) = (", y_center,", ", x_center, ")")
-    print("previous center: (y, x) = (", y_center + y_dif_center, ", ", x_center + x_dif_center, ")")
+    print("previous center (before the correction): (y, x) = (", y_center + y_dif_center, ", ", x_center + x_dif_center, ")")
 
     if plots == True:
         fig, axes = plt.subplots(1, 1, figsize=(18, 10))
@@ -401,6 +405,7 @@ def optimal_radius_selection_IFU(cube_path,
             wave[i] = (i+header["CRPIX3"])*header["CDELT3"] + header["CRVAL3"]
     
     if (len(data) > 0) and (len(wave) == 0):
+        print(" ")
         print("wave= ")
         print("Error: If you provide the data, also should provide the wavelength")
 
@@ -476,10 +481,14 @@ def optimal_radius_selection_IFU(cube_path,
         axes.set_xlabel("log(Signal)", fontsize=18)
         axes.plot(signal_r[1:], f(signal_r[1:], alpha, cte), c="red", label="Teoritical S/N")
         axes.fill_between(signal_r[1:], (1-error/100)*f(signal_r[1:], alpha, cte), (1 + error/100)*f(signal_r[1:], alpha, cte), color="red", alpha=0.1)
-        axes.plot(signal_r[indiceRadio], StoN_radius[indiceRadio],  ".", c="blue", markersize=10, label="Optimal Radius: "+ str(np.round(radius[indiceRadio],2 ))+ '"')
+        axes.plot(signal_r[indiceRadio], StoN_radius[indiceRadio],  ".", c="blue", markersize=10, label="Optimal Radius: "+ str(np.round(radius_spaxel[indiceRadio]))+ ' spaxels')
         axes.legend()
         axes.grid(False)
         plt.show()
+
+    print(" ")
+    print("Optimal radius (arcsec): ", radius[indiceRadio])
+    print("Number of spaxels inside the optimal radius: ", radius_spaxel[indiceRadio])
 
     return radius[indiceRadio], radius_spaxel[indiceRadio]
 
@@ -508,6 +517,7 @@ def Disk_integrate(cube_path,
             wave[i] = (i+header["CRPIX3"])*header["CDELT3"] + header["CRVAL3"]
     
     if (len(data) > 0) and (len(wave) == 0):
+        print(" ")
         print("wave= ")
         print("Error: If you provide the data, also should provide the wavelength")
 
@@ -572,7 +582,7 @@ def process_my_ifu_obs(fits_path,
 
     fig, axes = plt.subplots(1, 1, figsize=(18, 10))
     median = np.median(corrected_data[:, center[0], center[1]])
-    axes.plot(wave, data[:, center[0], center[1]], c="red", linewidth=0.5, label="Raw data")
+    axes.plot(wave, corrected_data[:, center[0], center[1]], c="red", linewidth=0.5, label="Raw data")
     axes.plot(wave, clean_data[:, center[0], center[1]], c="k", linewidth=0.5, label="Data with Sigma-Clipping")
     axes.set_title("Data with and without Sigma clipping", fontsize=22)
     axes.set_xlabel("Wavelength", fontsize=18)
