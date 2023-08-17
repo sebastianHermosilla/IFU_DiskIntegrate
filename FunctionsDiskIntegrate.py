@@ -582,6 +582,8 @@ def process_my_ifu_obs(fits_path,
 
     fig, axes = plt.subplots(1, 1, figsize=(18, 10))
     median = np.median(corrected_data[:, center[0], center[1]])
+    axes.vlines(lower_limit, 0, median*3, linestyle="--", color="orange", label="Limits for finding the best radius.")
+    axes.vlines(upper_limit, 0, median*3, linestyle="--", color="orange")
     axes.plot(wave, corrected_data[:, center[0], center[1]], c="red", linewidth=0.5, label="Raw data")
     axes.plot(wave, clean_data[:, center[0], center[1]], c="k", linewidth=0.5, label="Data with Sigma-Clipping")
     axes.set_title("Data with and without Sigma clipping", fontsize=22)
