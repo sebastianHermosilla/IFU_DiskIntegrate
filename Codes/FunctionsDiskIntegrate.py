@@ -11,20 +11,20 @@ def closest(x, arr):
     return index
 
 def visualize(cube_path):
-    """Gives you a quick visualization of the data for you to check dimensions 
-       of the slit, quality of the data and center of your object. Also returns 
-       important parameters.
+    """
+    Provides a quick visualization of the data, allowing you to check the dimensions
+    of the slit, data quality, and object center. Also returns important parameters.
 
-       Args:
-           cube_path (string): path to the data cube
+    Args:
+        cube_path (str): Path to the data cube.
 
-       Returns:
-           data (3d-array): the raw data of the data cube
-           wave (array): an array that extents in the wavelength range of the data
-           pix_x (int): amount of pixels in the x-direction of the slit
-           pix_y (int): amount of pixels in the y-direction of the slit
-           dx (float): arcseconds in between pixels in the x-direction of the slit 
-           dy (float): arcseconds in between pixels in the y-direction of the slit
+    Returns:
+        data (3D array): The raw data of the data cube.
+        wave (array): An array representing the wavelength range of the data.
+        pix_x (int): Number of pixels in the x-direction of the slit.
+        pix_y (int): Number of pixels in the y-direction of the slit.
+        dx (float): Arcseconds between pixels in the x-direction of the slit.
+        dy (float): Arcseconds between pixels in the y-direction of the slit.
     """
     obs = get_pkg_data_filename(cube_path)
     hdul = fits.open(cube_path)
@@ -64,24 +64,25 @@ def Atmospheric_dispersion_correction(cube_path,
                                       range_y = None, 
                                       plots = True, 
                                       max_plots=3):
-    """Corrects the atmospheric dispersion over a data-cube. Returns a shorter data with 
-    depending on how much the center of the observed object moved. Alsos provides the new center
-    calculated for the object in th enew data-cube.
+    """
+    Corrects atmospheric dispersion over a data cube, returning a modified data cube
+    depending on the observed object's center movement. Also provides the new center
+    calculated for the object in the corrected data cube.
 
-       Args:
-           cube_path (string): path to the data cube
-           data (3d-array): 3d-array containing a data cube 
-           wave (array): array containing the wavelength of the data
-           center_x (bool): True if you want to correct the Atm. dispersion in the x-direction
-           center_y (bool): True if you want to correct the Atm. dispersion in the y-direction
-           range_x (tuple): higher and lower value to perform the parabolic-fit in the x-direction
-           range_y (tuple): higher and lower value to perform the parabolic-fit in the y-direction
-           plots (bool): True if you want to see the plots
-           max_plots (float): factor to set the vertical limits of the plots. ylim=max_plots*data_median
+    Args:
+        cube_path (str): Path to the data cube.
+        data (3D array): 3D array containing the data cube.
+        wave (array): Array containing the wavelengths of the data.
+        center_x (bool): True to correct atmospheric dispersion in the x-direction.
+        center_y (bool): True to correct atmospheric dispersion in the y-direction.
+        range_x (tuple): Tuple specifying the range for parabolic fit in the x-direction.
+        range_y (tuple): Tuple specifying the range for parabolic fit in the y-direction.
+        plots (bool): True to display plots.
+        max_plots (float): Factor to set vertical plot limits. ylim = max_plots * data_median.
 
-       Returns:
-           corrected_data (3d-array): data cube with the atmospheric disperison correction
-           center (tuple): gives the calculated center of your new data cube
+    Returns:
+        corrected_data (3D array): Data cube with atmospheric dispersion correction.
+        center (tuple): Calculated center of the new data cube.
     """
     if len(data) == 0:
         obs = get_pkg_data_filename(cube_path)
@@ -348,19 +349,20 @@ def Atmospheric_dispersion_correction(cube_path,
 
 
 def Sigma_clipping_adapted_for_IFU(cube_path, data=np.array([]), wave=np.array([]), A=5, window=100):
-    """Uses an adaptation of the sigma-clipping algorith to identify outliers and replace them with the median of 
-    the their neighboring wavelenghts. Returns another data-cube much more cleaner. 
+    """
+    Identifies outliers using an adaptation of the sigma-clipping algorithm and replaces
+    them with the median of their neighboring wavelengths. Returns a cleaner data cube.
 
-       Args:
-           cube_path (string): path to the data cube
-           data (3d-array): 3d-array containing a data cube 
-           wave (array): array containing the wavelength of the data
-           A (float): amount of sigma away from the median to be considered an outlier
-           window (float): width of the window to perform the comparision and level of the data.
+    Args:
+        cube_path (str): Path to the data cube.
+        data (3D array): 3D array containing the data cube.
+        wave (array): Array containing the wavelengths of the data.
+        A (float): Amount of sigma away from the median to be considered an outlier.
+        window (float): Width of the window for comparison and leveling of the data.
 
-       Returns:
-           clean_data (3d-array): data cube with the outliers replaced.
-    """    
+    Returns:
+        clean_data (3D array): Data cube with outliers replaced.
+    """
     if len(data) == 0:
         obs = get_pkg_data_filename(cube_path)
         hdul = fits.open(cube_path)
@@ -426,7 +428,7 @@ def Sigma_clipping_adapted_for_IFU(cube_path, data=np.array([]), wave=np.array([
     
 
 def optimal_radius_selection_IFU(cube_path, 
-                                 centro, 
+                                 center, 
                                  lower_lam, 
                                  upper_lam, 
                                  data=np.array([]), 
@@ -435,7 +437,29 @@ def optimal_radius_selection_IFU(cube_path,
                                  dim_x=1.8, 
                                  error=3, 
                                  plots=True, 
-                                 percentage=20):    
+                                 percentage=20):
+    """
+    Determines the optimal radius for disk integration of spectra by analyzing a small, flat range
+    of the spectra and observing its behavior as the radius of the integrated area increases.
+
+    Args:
+        cube_path (str): Path to the data cube.
+        center (tuple): Central pixel coordinates of the object in the format (y-center, x-center).
+        lower_lam (float): Lower limit in wavelength for the spectra to study.
+        upper_lam (float): Upper limit in wavelength for the spectra to study.
+        data (3D array): 3D array containing the data cube.
+        wave (array): Array containing the wavelengths of the data.
+        dim_x (float): Dimension in the x-direction of the slit in arcseconds.
+        dim_y (float): Dimension in the y-direction of the slit in arcseconds.
+        error (float): Percentage of error to consider as a deviation from the theoretical
+                       signal-to-noise increase.
+        plots (bool): True if you want to visualize plots.
+        percentage (float): Percentage of the initial data to consider for fitting.
+
+    Returns:
+        radius (float): Optimal radius for disk integration in arcseconds.
+        radius_spaxel (int): Number of pixels within the optimal radius.
+    """
     if len(data) == 0:
         obs = get_pkg_data_filename(cube_path)
         hdul = fits.open(cube_path)
@@ -467,7 +491,7 @@ def optimal_radius_selection_IFU(cube_path,
     distance_matrix = np.zeros((pix_y, pix_x))
     for i in range(pix_x):
         for j in range(pix_y):
-            distance_matrix[j, i] = np.sqrt( (dy*(j-centro[0]))**2 + (dx*(i-centro[1]))**2)
+            distance_matrix[j, i] = np.sqrt( (dy*(j-center[0]))**2 + (dx*(i-center[1]))**2)
 
     max_distance = np.max(distance_matrix)
     r_N = 500
@@ -538,16 +562,31 @@ def optimal_radius_selection_IFU(cube_path,
     print("Optimal radius (arcsec): ", radius[indiceRadio])
     print("Number of spaxels inside the optimal radius: ", radius_spaxel[indiceRadio])
 
-    return radius[indiceRadio], radius_spaxel[indiceRadio]
+    return radius[indiceRadio], int(radius_spaxel[indiceRadio])
 
 def Disk_integrate(cube_path, 
-                   centro, 
-                   radio,
+                   center, 
+                   rad,
                    data=np.array([]), 
                    wave=np.array([]),
                    dim_x = 1.5,
                    dim_y = 4):
-    
+    """
+    Performs disk integration on IFU observations using the provided radius.
+
+    Args:
+        cube_path (str): Path to the data cube.
+        center (tuple): Central pixel coordinates of the object in the format (y-center, x-center).
+        rad (float): Limit for the disk integration.
+        data (3D array): 3D array containing the data cube.
+        wave (array): Array containing the wavelengths of the data.
+        dim_x (float): Dimension in the x-direction of the slit in arcseconds.
+        dim_y (float): Dimension in the y-direction of the slit in arcseconds.
+
+    Returns:
+        flux_final (array): The final disk-integrated spectra.
+        wave (array): The wavelength array for the final spectra.
+    """
     if len(data) == 0:
         obs = get_pkg_data_filename(cube_path)
         hdul = fits.open(cube_path)
@@ -583,19 +622,19 @@ def Disk_integrate(cube_path,
 
     for i in range(pix_x):
         for j in range(pix_y):
-            distance_matrix[j, i] = np.sqrt( (dy*(j-centro[0]))**2 + (dx*(i-centro[1]))**2)
+            distance_matrix[j, i] = np.sqrt( (dy*(j-center[0]))**2 + (dx*(i-center[1]))**2)
 
     max_distance = np.max(distance_matrix)
     radius = np.linspace(0, max_distance, 100)
 
-    flujo_final= np.zeros(N)
+    flux_final= np.zeros(N)
     for i in range(pix_x):
         for j in range(pix_y):
             ventana = data[:, j, i]
-            if distance_matrix[j, i] < radio:
-                flujo_final = flujo_final + ventana
+            if distance_matrix[j, i] < rad:
+                flux_final = flux_final + ventana
 
-    return flujo_final
+    return flux_final, wave
 
 
 def process_my_ifu_obs(fits_path,
@@ -611,6 +650,31 @@ def process_my_ifu_obs(fits_path,
                        window_sc=100, 
                        percentage=25, 
                        error=1):
+    """
+    Computes a single disk-integrated spectrum from observations with IFUs. The algorithm involves three steps:
+    1. Corrects atmospheric dispersion (optional for x and y directions).
+    2. Identifies and replaces outliers using an adapted sigma clipping algorithm.
+    3. Selects the optimal radius for disk integration based on central pixel analysis.
+
+    Args:
+        fits_path (str): Path to the data cube.
+        lower_limit (float): Lower limit in wavelength for optimal radius selection.
+        upper_limit (float): Upper limit in wavelength for optimal radius selection.
+        corrected_center_x (bool): True if atmospheric correction is needed in the x-direction.
+        corrected_center_y (bool): True if atmospheric correction is needed in the y-direction.
+        look_center_x (tuple): Higher and lower values for parabolic fit in the x-direction.
+        look_center_y (tuple): Higher and lower values for parabolic fit in the y-direction.
+        plots (bool): True to visualize plots.
+        max_plots (float): Factor to set vertical plot limits. ylim = max_plots * data_median.
+        A_sc (float): Amount of sigma away from the median to consider an outlier.
+        window_sc (float): Width of the window for comparison and data leveling.
+        percentage (float): Percentage of initial data to consider for fitting.
+        error (float): Percentage of error to consider as a deviation from theoretical signal-to-noise increase.
+
+    Returns:
+        corrected_data (3D array): Data cube with atmospheric dispersion correction.
+        center (tuple): Calculated center of the new data cube.
+    """
     
     data, wave, pix_x, pix_y, dx, dy = visualize(fits_path)
 
@@ -651,7 +715,7 @@ def process_my_ifu_obs(fits_path,
                                                           dim_x=dx*(pix_x + 1), 
                                                           dim_y=dy*(pix_y + 1))
     
-    final_data = Disk_integrate(" ", 
+    final_data, wave = Disk_integrate(" ", 
                                 center, 
                                 radius, 
                                 data=clean_data, 
