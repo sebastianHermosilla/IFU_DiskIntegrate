@@ -4,11 +4,23 @@ from astropy.utils.data import get_pkg_data_filename
 from astropy.io import fits
 from scipy.optimize import curve_fit
 
+
 def closest(x, arr):
+    """
+    From an array and a value, the function finds the closest value in the array to that value.
+
+    Args:
+        x (float): Value that you are looking for.
+        arr (array): Array where to look for the value or the closest one.
+
+    Returns:
+        index (int): Index where the value (or the closest one in the array) is.
+    """
+
     difference_array = np.absolute(arr-x)
-    # find the index of minimum element from the array
     index = difference_array.argmin()
     return index
+
 
 def visualize(cube_path):
     """
@@ -51,7 +63,7 @@ def visualize(cube_path):
     axes.set_xlabel("x-spaxels")
 
     print(" ")
-    print("Size of the data: (",N ,", ", pix_y, ", ", pix_y, ")")
+    print("Size of the data: (",N ,", ", pix_y, ", ", pix_x, ")")
     return data, wave, int(pix_x), int(pix_y), dx, dy
 
 
@@ -268,50 +280,43 @@ def Atmospheric_dispersion_correction(cube_path,
         for j in range(pix_y):
             medianas[j, i] = np.nanpercentile(data[:, j, i], 50)
 
-
-    corrected_ydata = np.zeros((N, long_y, pix_x))
-    for l in range(N):
+    if center_y:
+        new_long_y = int(long_y - 2*y_dif_center)
+        corrected_ydata = np.zeros((N, new_long_y, pix_x))
         for i in range(pix_x):
-            for j in range(pix_y):
-                if (y_variation[l]) < 0:
-                    if j == 0:
-                        corrected_ydata[l, int(j - y_offset[l]), i] = data[l, j, i] * (1 + (y_variation[l]))
-                    else:
-                        ponderado = medianas[j, i] / medianas[j-1, i]
-                        corrected_ydata[l, int(j - y_offset[l]), i] = data[l, j, i] * (1 + (y_variation[l])) + data[l, j-1, i] * (y_variation[l]) * (-1) * ponderado 
-                if (y_variation[l]) >= 0:
-                    if j == pix_y-1:
-                        corrected_ydata[l, int(j - y_offset[l]), i] = data[l, j, i] * (1 - (y_variation[l]))
-                    else:
-                        ponderado = medianas[j, i] / medianas[j+1, i]
-                        corrected_ydata[l, int(j - y_offset[l]), i] = data[l, j, i] * (1 - (y_variation[l])) + data[l, j+1, i] * (y_variation[l]) / ponderado
+            for j in range(new_long_y):
+                for l in range(N):
+                    if y_variation[l] > 0:
+                        movement = int(y_dif_center + y_offset[l])
+                        if (j + movement + 1) == pix_y:
+                            corrected_ydata[l, j, i] = data[l, j + movement, i]
+                        else:
+                            corrected_ydata[l, j, i] = data[l, j + movement, i]*(1 - y_variation[l]) + data[l, j + movement + 1, i]*(y_variation[l])
+                    if y_variation[l] < 0:
+                        movement = int(y_dif_center + y_offset[l])
+                        corrected_ydata[l, j, i] = data[l, j + movement, i]*(1 + y_variation[l]) + data[l, j + movement - 1, i]*(y_variation[l])*(-1)
+    else: 
+        corrected_ydata = data
 
-                if long_y > pix_y:
-                    for d in range(long_y - pix_y):
-                        corrected_ydata[l, int((long_y - y_offset[l] - d -1)%long_y), i] = None
+    if center_x:
+        new_long_x = int(long_x - 2*x_dif_center)
+        corrected_data = np.zeros((N, new_long_y, new_long_x))
+        for i in range(new_long_x):
+            for j in range(new_long_y):
+                for l in range(N):
+                    if x_variation[l] > 0:
+                        movement = int(x_dif_center + x_offset[l])
+                        if (i + movement + 1) == pix_x:
+                            corrected_data[l, j, i] = corrected_ydata[l, j, i+movement]
+                        else:
+                            corrected_data[l, j, i] = corrected_ydata[l, j, i+movement]*(1 - x_variation[l]) + corrected_ydata[l, j, i + movement + 1]*(x_variation[l])
+                    if x_variation[l] < 0:
+                        movement = int(x_dif_center + x_offset[l])
+                        corrected_data[l, j, i] = corrected_ydata[l, j, i+movement]*(1 + x_variation[l]) + corrected_ydata[l, j, i+movement-1]*(x_variation[l])*(-1)
 
-    corrected_xdata = np.zeros((N, long_y, long_x))
-    for l in range(N):
-        for i in range(pix_x):
-            for j in range(pix_y):
-                if (x_variation[l]) < 0:
-                    if i == 0:
-                        corrected_xdata[l, j, int(i - x_offset[l])] = corrected_ydata[l, j, i] * (1 + (x_variation[l]))
-                    else:
-                        ponderado = medianas[j, i] / medianas[j, i-1]
-                        corrected_xdata[l, j, int(i - x_offset[l])] = corrected_ydata[l, j, i] * (1 + (x_variation[l])) + corrected_ydata[l, j, i-1] * (x_variation[l]) * (-1) * ponderado 
-                if (x_variation[l]) >= 0:
-                    if i == pix_x-1:
-                        corrected_xdata[l, j, int(i - x_offset[l])] = corrected_ydata[l, j, i] * (1 - (x_variation[l]))
-                    else:
-                        ponderado = medianas[j, i] / medianas[j, i+1]
-                        corrected_xdata[l, j, int(i - x_offset[l])] = corrected_ydata[l, j, i] * (1 - (x_variation[l])) + corrected_ydata[l, j, i+1] * (x_variation[l]) / ponderado
+    else:
+        corrected_data = corrected_ydata
 
-                if long_x > pix_x:
-                    for d in range(long_x - pix_x):
-                        corrected_xdata[l, j, int((long_x - x_offset[l] - d -1)%long_x)] = None
-
-    corrected_data = corrected_xdata[:, y_dif_center:int(long_y-y_dif_center), x_dif_center:int(long_x-x_dif_center)]
 
     x_center = int(np.round(x_coords_center[0] + parabola(wave, *popt_x)[0] - x_dif_center))
     y_center = int(np.round(y_coords_center[0] + parabola(wave, *popt_y)[0] - y_dif_center))
@@ -337,7 +342,7 @@ def Atmospheric_dispersion_correction(cube_path,
         axes.plot(wave, data[:, y_center + y_dif_center, x_center + x_dif_center] , c="red", label="Original data", linewidth=0.5)
         axes.plot(wave, corrected_data[:, y_center, x_center] , c="k", label="Corrected data", linewidth=0.5)
         axes.set_title("Spectra after the atmospheric dispersion correction", fontsize=21)
-        axes.set_xlabel("Wavelanght", fontsize=18)
+        axes.set_xlabel("Wavelenght", fontsize=18)
         axes.set_ylabel("Count", fontsize=18)
         axes.set_ylim(0, mean_both*max_plots)
         axes.legend()
@@ -636,6 +641,121 @@ def Disk_integrate(cube_path,
 
     return flux_final, wave
 
+def save_file(path_to_save, 
+              header, 
+              data,
+              radius = None, 
+              radius_spaxel = None, 
+              center = None, 
+              comment = None, 
+              lower_limit=None,
+              upper_limit=None,
+              correct_center_x=None, 
+              correct_center_y=None,
+              look_center_x=None,
+              look_center_y=None,
+              A_sc=None,  
+              window_sc=None, 
+              percentage=None, 
+              error=None):
+    """
+    Save the final data into a FITS file. Also writes in the header all the important information about the final data.
+
+    Args:
+        path_to_save (str): Path where the data will be saved.
+        header (str): Header of the raw data.
+        data (float): Final data that needs to be saved.
+        radius (float): Optimal radius for disk integration in arcseconds.
+        radius_spaxel (int): Number of pixels within the optimal radius.
+        center (tuple): Calculated center of the new data cube.
+        lower_limit (float): Lower limit in wavelength for optimal radius selection.
+        upper_limit (float): Upper limit in wavelength for optimal radius selection.
+        corrected_center_x (bool): True if atmospheric correction is needed in the x-direction.
+        corrected_center_y (bool): True if atmospheric correction is needed in the y-direction.
+        look_center_x (tuple): Higher and lower values for parabolic fit in the x-direction.
+        look_center_y (tuple): Higher and lower values for parabolic fit in the y-direction.
+        plots (bool): True to visualize plots.
+        max_plots (float): Factor to set vertical plot limits. ylim = max_plots * data_median.
+        A_sc (float): Amount of sigma away from the median to consider an outlier.
+        window_sc (float): Width of the window for comparison and data leveling.
+        percentage (float): Percentage of initial data to consider for fitting.
+        error (float): Percentage of error to consider as a deviation from the theoretical signal-to-noise increase.
+
+    Returns:
+        None
+    """
+
+    hdr = header
+
+    if radius_spaxel != None:
+        hdr["SH SPAXELS R"] = radius_spaxel
+    if radius_spaxel == None:
+        hdr["SH SPAXELS R"] = "No information"
+
+    if radius != None:
+        hdr["SH ANGULAR R"] = radius
+    if radius == None:
+        hdr["SH ANGULAR R"] = "No information"
+
+    if A_sc != None:
+        hdr["SH A SIGMA CLIPPING"] = A_sc
+        hdr["SH WINDOW SIGMA CLIPPING"] = window_sc
+    if A_sc == None:
+        hdr["SH A SIGMA CLIPPING"] = "No information"
+        hdr["SH WINDOW SIGMA CLIPPING"] = "No information"
+
+    if center != None:
+        hdr["SH OBJECT CENTER Y"] = center[0]
+        hdr["SH OBJECT CENTER X"] = center[1]
+    if center == None:
+        hdr["SH OBJECT CENTER Y"] = "No information"
+        hdr["SH OBJECT CENTER X"] = "No information"
+
+    if comment != None:
+        hdr["SH COMMENT"] = comment
+    if comment == None:
+        hdr["SH COMMENT"] = "No comments"
+
+    if lower_limit != None:
+        hdr["SH LOWER LIMIT"] = lower_limit
+        hdr["SH UPPER LIMIT"] = upper_limit
+    if lower_limit == None:
+        hdr["SH LOWER LIMIT"] = "No information"
+        hdr["SH UPPER LIMIT"] = "No information"
+
+    if correct_center_x != None:
+        hdr["SH X CENTER CORRECTION"] = correct_center_x
+    if correct_center_y != None:
+        hdr["SH Y CENTER CORRECTION"] = correct_center_y
+    if correct_center_x == None:
+        hdr["SH X CENTER CORRECTION"] = "No information"
+    if correct_center_y == None:
+        hdr["SH Y CENTER CORRECTION"] = "No information"
+
+    if look_center_x != None:
+        hdr["SH X CENTER CORRECTION RANGE"] = look_center_x
+    if look_center_y != None:
+        hdr["SH Y CENTER CORRECTION RANGE"] = look_center_y
+    if look_center_x == None:
+        hdr["SH X CENTER CORRECTION RANGE"] = "No information"
+    if look_center_y == None:
+        hdr["SH Y CENTER CORRECTION RANGE"] = "No information"
+
+    if percentage != None:
+        hdr["SH PERCENTAGE FOR FITTING"] = look_center_x
+    if percentage == None:
+        hdr["SH PERCENTAGE FOR FITTING"] = "No information"
+    
+    if error != None:
+        hdr["SH ERROR ACEPTED"] = error
+    if percentage == None:
+        hdr["SH ERROR ACEPTED"] = "No information"
+    
+    empty_primary = fits.PrimaryHDU(data, header=hdr)
+
+    hdul = fits.HDUList([empty_primary])
+    hdul.writeto(path_to_save, overwrite=True)
+
 
 def process_my_ifu_obs(fits_path,
                        lower_limit, 
@@ -649,7 +769,9 @@ def process_my_ifu_obs(fits_path,
                        A_sc=3, 
                        window_sc=100, 
                        percentage=25, 
-                       error=1):
+                       error=1, 
+                       path_to_save = None, 
+                       comment = None):
     """
     Computes a single disk-integrated spectrum from observations with IFUs. The algorithm involves three steps:
     1. Corrects atmospheric dispersion (optional for x and y directions).
@@ -669,7 +791,9 @@ def process_my_ifu_obs(fits_path,
         A_sc (float): Amount of sigma away from the median to consider an outlier.
         window_sc (float): Width of the window for comparison and data leveling.
         percentage (float): Percentage of initial data to consider for fitting.
-        error (float): Percentage of error to consider as a deviation from theoretical signal-to-noise increase.
+        error (float): Percentage of error to consider as a deviation from the theoretical signal-to-noise increase.
+        path_to_save (str): Path where the final data will be saved.
+        comment (str): Special comment that will be saved in the header of the final FITS file.
 
     Returns:
         corrected_data (3D array): Data cube with atmospheric dispersion correction.
@@ -731,8 +855,29 @@ def process_my_ifu_obs(fits_path,
     axes.set_ylabel("Count", fontsize=18)
     axes.legend()
     axes.set_ylim(0, median*3)
+
+    if path_to_save != None:
+        hdul = fits.open(fits_path)
+        save_file(path_to_save, 
+                  hdul[0].header, 
+                  final_data, 
+                  radius=radius, 
+                  radius_spaxel=radius_spaxels,  
+                  center=center, 
+                  comment=comment, 
+                  lower_limit=lower_limit,
+                  upper_limit=upper_limit,
+                  correct_center_x=correct_center_x, 
+                  correct_center_y=correct_center_y,
+                  look_center_x=look_center_x,
+                  look_center_y=look_center_y,
+                  A_sc=A_sc,  
+                  window_sc=window_sc, 
+                  percentage=percentage, 
+                  error=error)
     
     return final_data, wave
+
 
     
     
