@@ -22,7 +22,7 @@ def closest(x, arr):
     return index
 
 
-def visualize(cube_path):
+def visualize(cube_path, save_plots=None):
     """
     Provides a quick visualization of the data, allowing you to check the dimensions
     of the slit, data quality, and object center. Also returns important parameters.
@@ -61,6 +61,8 @@ def visualize(cube_path):
     axes.imshow(medians, origin="lower", aspect=dy/dx)
     axes.set_ylabel("y-spaxels")
     axes.set_xlabel("x-spaxels")
+    if save_plots != None:
+        plt.savefig(save_plots + "/Visualization_RawData.png")
 
     print(" ")
     print("Size of the data: (",N ,", ", pix_y, ", ", pix_x, ")")
@@ -75,7 +77,8 @@ def Atmospheric_dispersion_correction(cube_path,
                                       range_x = None, 
                                       range_y = None, 
                                       plots = True, 
-                                      max_plots=3):
+                                      max_plots=3,
+                                      save_plots=None):
     """
     Corrects atmospheric dispersion over a data cube, returning a modified data cube
     depending on the observed object's center movement. Also provides the new center
@@ -91,6 +94,7 @@ def Atmospheric_dispersion_correction(cube_path,
         range_y (tuple): Tuple specifying the range for parabolic fit in the y-direction.
         plots (bool): True to display plots.
         max_plots (float): Factor to set vertical plot limits. ylim = max_plots * data_median.
+        save_plots (str): If a path is provided, the images are save in this directory.
 
     Returns:
         corrected_data (3D array): Data cube with atmospheric dispersion correction.
@@ -199,7 +203,10 @@ def Atmospheric_dispersion_correction(cube_path,
         axes[1].set_ylabel("x-spaxels", fontsize=14)
         axes[1].grid(False)
         axes[1].legend()
+        if save_plots != None:
+            plt.savefig(save_plots + "/CenterMovement.png")
         plt.show()
+
 
     if center_y == True: 
 
@@ -347,6 +354,8 @@ def Atmospheric_dispersion_correction(cube_path,
         axes.set_ylim(0, mean_both*max_plots)
         axes.legend()
         axes.grid(False)
+        if save_plots != None:
+            plt.savefig(save_plots + "/AtmosphericDispersion_Correction.png")
         plt.show()
 
     return corrected_data, (y_center, x_center)
@@ -442,7 +451,8 @@ def optimal_radius_selection_IFU(cube_path,
                                  dim_x=1.8, 
                                  error=3, 
                                  plots=True, 
-                                 percentage=20):
+                                 percentage=20,
+                                 save_plots=None):
     """
     Determines the optimal radius for disk integration of spectra by analyzing a small, flat range
     of the spectra and observing its behavior as the radius of the integrated area increases.
@@ -460,6 +470,7 @@ def optimal_radius_selection_IFU(cube_path,
                        signal-to-noise increase.
         plots (bool): True if you want to visualize plots.
         percentage (float): Percentage of the initial data to consider for fitting.
+        save_plots (str): If a path is provided, the images are save in this directory.
 
     Returns:
         radius (float): Optimal radius for disk integration in arcseconds.
@@ -561,6 +572,8 @@ def optimal_radius_selection_IFU(cube_path,
         axes.plot(signal_r[indiceRadio], StoN_radius[indiceRadio],  ".", c="blue", markersize=10, label="Optimal Radius: "+ str(np.round(radius_spaxel[indiceRadio]))+ ' spaxels')
         axes.legend()
         axes.grid(False)
+        if save_plots != None:
+            plt.savefig(save_plots + "/SignalToNoiseIncrease.png")
         plt.show()
 
     print(" ")
@@ -771,7 +784,8 @@ def process_my_ifu_obs(fits_path,
                        percentage=25, 
                        error=1, 
                        path_to_save = None, 
-                       comment = None):
+                       comment = None, 
+                       save_plots = None):
     """
     Computes a single disk-integrated spectrum from observations with IFUs. The algorithm involves three steps:
     1. Corrects atmospheric dispersion (optional for x and y directions).
@@ -794,13 +808,14 @@ def process_my_ifu_obs(fits_path,
         error (float): Percentage of error to consider as a deviation from the theoretical signal-to-noise increase.
         path_to_save (str): Path where the final data will be saved.
         comment (str): Special comment that will be saved in the header of the final FITS file.
+        save_plots (str): If a path is provided, the images are save in this directory.
 
     Returns:
         corrected_data (3D array): Data cube with atmospheric dispersion correction.
         center (tuple): Calculated center of the new data cube.
     """
     
-    data, wave, pix_x, pix_y, dx, dy = visualize(fits_path)
+    data, wave, pix_x, pix_y, dx, dy = visualize(fits_path, save_plots)
 
     corrected_data, center = Atmospheric_dispersion_correction(" ", data, wave, 
                                                                center_x=correct_center_x, 
@@ -808,7 +823,8 @@ def process_my_ifu_obs(fits_path,
                                                                range_x=look_center_x, 
                                                                range_y=look_center_y, 
                                                                plots=plots, 
-                                                               max_plots=max_plots)
+                                                               max_plots=max_plots,
+                                                               save_plots=save_plots)
     
     clean_data = Sigma_clipping_adapted_for_IFU("", 
                                                 data=corrected_data, 
@@ -827,6 +843,7 @@ def process_my_ifu_obs(fits_path,
     axes.set_ylabel("Count", fontsize=18)
     axes.legend()
     axes.set_ylim(0, median*3)
+    plt.savefig(save_plots + "/SigmaClipping.png")
 
     radius, radius_spaxels = optimal_radius_selection_IFU(" ", 
                                                           center, 
@@ -837,7 +854,8 @@ def process_my_ifu_obs(fits_path,
                                                           percentage=percentage, 
                                                           error=error,
                                                           dim_x=dx*(pix_x + 1), 
-                                                          dim_y=dy*(pix_y + 1))
+                                                          dim_y=dy*(pix_y + 1),
+                                                          save_plots=save_plots)
     
     final_data, wave = Disk_integrate(" ", 
                                 center, 
@@ -855,6 +873,7 @@ def process_my_ifu_obs(fits_path,
     axes.set_ylabel("Count", fontsize=18)
     axes.legend()
     axes.set_ylim(0, median*3)
+    plt.savefig(save_plots + "/Final_DiskIntegrated_Spectra.png")
 
     if path_to_save != None:
         hdul = fits.open(fits_path)
